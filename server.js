@@ -9,6 +9,17 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static("public"));
+// Loga todas as requisições (temporário para debug)
+app.use((req, res, next) => {
+  console.log(`[REQ] ${req.method} ${req.url}`);
+  next();
+});
+
+// Health-check (pra testar se o servidor responde)
+app.get("/health", (req, res) => {
+  res.status(200).send("ok");
+});
+
 
 app.use("/api/", rateLimit({
   windowMs: 60_000,
@@ -232,4 +243,5 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
