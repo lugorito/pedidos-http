@@ -100,6 +100,36 @@ const transporter = nodemailer.createTransport({
 
 app.post("/api/pedidos", async (req, res) => {
   try {
+    // RESPONDE PRIMEIRO (isso evita 502)
+res.status(200).json({
+  ok: true,
+  pedidoId
+});
+
+// ENVIO DE E-MAIL EM SEGUNDO PLANO
+setImmediate(async () => {
+  try {
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM,
+      to: process.env.MAIL_TO,
+      replyTo: pedido.destinatario.email,
+      subject,
+      text,
+      attachments: [
+        {
+          filename: `pedido-${pedidoId}.json`,
+          content: JSON.stringify(pedido, null, 2),
+          contentType: "application/json",
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("Erro ao enviar e-mail:", err);
+  }
+});
+
+return;
+
     const p = req.body || {};
 
     // --- validações obrigatórias ---
@@ -243,5 +273,6 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
