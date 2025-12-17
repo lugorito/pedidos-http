@@ -1,0 +1,228 @@
+import express from "express";
+import nodemailer from "nodemailer";
+import rateLimit from "express-rate-limit";
+import fs from "fs/promises";
+import path from "path";
+import crypto from "crypto";
+
+const app = express();
+app.use(express.json({ limit: "1mb" }));
+app.use(express.static("public"));
+
+app.use("/api/", rateLimit({ windowMs: 60_000, max: 30 }));
+
+const onlyDigits = (s = "") => String(s).replace(/\D/g, "");
+const clean = (s = "") => String(s).trim();
+
+function isCPF(cpf) {
+  cpf = onlyDigits(cpf);
+  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i);
+  let d1 = (sum * 10) % 11;
+  if (d1 === 10) d1 = 0;
+  if (d1 !== parseInt(cpf[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(cpf[i]) * (11 - i);
+  let d2 = (sum * 10) % 11;
+  if (d2 === 10) d2 = 0;
+  return d2 === parseInt(cpf[10]);
+}
+
+function isCNPJ(cnpj) {
+  cnpj = onlyDigits(cnpj);
+  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+  const calc = (base) => {
+    const w =
+      base.length === 12
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    for (let i = 0; i < w.length; i++) sum += parseInt(base[i]) * w[i];
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - rosin;
+  };
+  const d1 = calc(cnpj.slice(0, 12));
+  const d2 = calc(cnpj.slice(0, 12) + d1);
+  return parseInt(cnpj[12]) === d1 && parseInt(cnpj[13]) === d2;
+}
+
+// ⚠️ CORREÇÃO: havia um typo propositalmente a evitar; ajuste aqui:
+function calcCNPJDigit(base) {
+  const w =
+    base.length === 12
+      ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+      : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  let sum = 0;
+  for (let i = 0; i < w.length; i++) sum += parseInt(base[i]) * w[i];
+  const r = sum % 11;
+  return r < 2 ? 0 : 11 - r;
+}
+function isCNPJ_FIXED(cnpj) {
+  cnpj = onlyDigits(cnpj);
+  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+  const d1 = calcCNPJDigit(cnpj.slice(0, 12));
+  const d2 = calcCNPJDigit(cnpj.slice(0, 12) + d1);
+  return parseInt(cnpj[12]) === d1 && parseInt(cnpj[13]) === d2;
+}
+
+function assert(condition, msg) {
+  if (!condition) {
+    const err = new Error(msg);
+    err.status = 400;
+    throw err;
+  }
+}
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: false,
+  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+});
+
+app.post("/api/pedidos", async (req, res) => {
+  try {
+    const p = req.body || {};
+
+    // --- validações obrigatórias ---
+    assert(p.tipoCliente === "PF" || p.tipoCliente === "PJ", "tipoCliente inválido.");
+    assert(clean(p.xNome), "xNome obrigatório.");
+    assert(clean(p.doc), "doc (CPF/CNPJ) obrigatório.");
+    assert(clean(p.email), "email obrigatório.");
+    assert(clean(p.fone), "fone/whatsapp obrigatório.");
+
+    assert(p.enderDest && typeof p.enderDest === "object", "enderDest obrigatório.");
+    const e = p.enderDest;
+
+    assert(clean(e.CEP), "CEP obrigatório.");
+    assert(clean(e.xLgr), "Logradouro obrigatório.");
+    assert(clean(e.nro), "Número obrigatório.");
+    assert(clean(e.xBairro), "Bairro obrigatório.");
+    assert(clean(e.xMun), "Cidade (xMun) obrigatória.");
+    assert(clean(e.UF), "UF obrigatória.");
+
+    assert(Array.isArray(p.itens) && p.itens.length > 0, "itens[] obrigatório (mín. 1 item).");
+
+    // --- valida documento ---
+    if (p.tipoCliente === "PF") {
+      assert(isCPF(p.doc), "CPF inválido.");
+    } else {
+      assert(isCNPJ_FIXED(p.doc), "CNPJ inválido.");
+    }
+
+    // --- indIEDest e IE ---
+    const ind = String(p.indIEDest || "").trim();
+    assert(["1", "2", "9"].includes(ind), "indIEDest deve ser 1, 2 ou 9.");
+
+    if (ind === "1") {
+      assert(clean(p.IE), "IE obrigatória quando indIEDest=1 (contribuinte ICMS).");
+    }
+
+    // --- valida itens ---
+    const itens = p.itens.map((it, idx) => {
+      assert(it && typeof it === "object", `Item #${idx + 1}: inválido.`);
+      const sku = clean(it.sku);
+      const qtd = Number(it.qtd);
+      assert(sku, `Item #${idx + 1}: sku obrigatório.`);
+      assert(Number.isFinite(qtd) && qtd > 0, `Item #${idx + 1}: qtd inválida.`);
+      return {
+        sku,
+        qtd,
+        variacao: clean(it.variacao || ""),
+      };
+    });
+
+    const pedidoId = crypto.randomUUID();
+
+    const pedido = {
+      pedidoId,
+      createdAt: new Date().toISOString(),
+      origem: { UF: "RJ", municipio: "Saquarema" },
+      destinatario: {
+        tipoCliente: p.tipoCliente,
+        xNome: clean(p.xNome),
+        CPF: p.tipoCliente === "PF" ? onlyDigits(p.doc) : undefined,
+        CNPJ: p.tipoCliente === "PJ" ? onlyDigits(p.doc) : undefined,
+        indIEDest: ind,
+        IE: clean(p.IE || "") || undefined,
+        email: clean(p.email),
+        fone: clean(p.fone),
+      },
+      enderDest: {
+        CEP: onlyDigits(e.CEP),
+        xLgr: clean(e.xLgr),
+        nro: clean(e.nro),
+        xCpl: clean(e.xCpl || ""),
+        xBairro: clean(e.xBairro),
+        xMun: clean(e.xMun),
+        UF: clean(e.UF).toUpperCase(),
+      },
+      itens,
+      frete: clean(p.frete || ""),
+      obs: clean(p.obs || ""),
+    };
+
+    // backup em arquivo
+    await fs.mkdir("./data", { recursive: true });
+    const filePath = path.join("data", `pedido-${pedidoId}.json`);
+    await fs.writeFile(filePath, JSON.stringify(pedido, null, 2), "utf8");
+
+    // e-mail
+    const subject = `NOVO PEDIDO ${pedidoId} - ${pedido.enderDest.UF} - ${pedido.destinatario.xNome}`;
+
+    const itensTxt = itens
+      .map((it) => `- SKU: ${it.sku} | Qtd: ${it.qtd}${it.variacao ? ` | Var: ${it.variacao}` : ""}`)
+      .join("\n");
+
+    const text =
+`NOVO PEDIDO
+ID: ${pedidoId}
+Data: ${pedido.createdAt}
+
+DESTINATÁRIO
+- Tipo: ${pedido.destinatario.tipoCliente}
+- Nome/Razão: ${pedido.destinatario.xNome}
+- CPF/CNPJ: ${p.doc}
+- indIEDest: ${pedido.destinatario.indIEDest}
+- IE: ${pedido.destinatario.IE || "-"}
+- E-mail: ${pedido.destinatario.email}
+- WhatsApp: ${pedido.destinatario.fone}
+
+ENDEREÇO
+${pedido.enderDest.xLgr}, ${pedido.enderDest.nro}${pedido.enderDest.xCpl ? " - " + pedido.enderDest.xCpl : ""}
+Bairro: ${pedido.enderDest.xBairro}
+${pedido.enderDest.xMun}/${pedido.enderDest.UF} - CEP ${pedido.enderDest.CEP}
+
+ITENS
+${itensTxt}
+
+FRETE: ${pedido.frete || "-"}
+OBS: ${pedido.obs || "-"}
+`;
+
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM,
+      to: process.env.MAIL_TO,
+      replyTo: pedido.destinatario.email,
+      subject,
+      text,
+      attachments: [
+        {
+          filename: `pedido-${pedidoId}.json`,
+          content: JSON.stringify(pedido, null, 2),
+          contentType: "application/json",
+        },
+      ],
+    });
+
+    return res.status(200).json({ ok: true, pedidoId });
+  } catch (err) {
+    const status = err.status || 500;
+    return res.status(status).send(err.message || "Erro interno.");
+  }
+});
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log("Servidor rodando.");
+});

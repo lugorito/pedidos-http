@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Pedido</title>
+  <style>
+    body{font-family:Arial; max-width:920px; margin:24px auto; padding:0 12px;}
+    label{display:block; margin-top:12px; font-weight:600;}
+    input,select,textarea{width:100%; padding:10px; margin-top:6px; box-sizing:border-box;}
+    .row{display:flex; gap:12px;}
+    .row>div{flex:1;}
+    .card{border:1px solid #ddd; padding:12px; border-radius:10px; margin-top:12px;}
+    button{padding:10px 14px; cursor:pointer; margin-top:10px;}
+    .items{margin-top:8px;}
+    .item{display:flex; gap:8px; align-items:center; margin-top:8px;}
+    .item input{margin-top:0;}
+    .item .sku{flex:2;}
+    .item .var{flex:2;}
+    .item .qtd{flex:1;}
+    .item .rem{flex:0;}
+    .hint{font-size:12px; opacity:.75;}
+  </style>
+</head>
+<body>
+<h1>Receber Pedido</h1>
+
+<form id="pedidoForm">
+  <div class="card">
+    <h2>Destinatário</h2>
+
+    <label>Tipo</label>
+    <select name="tipoCliente" id="tipoCliente" required>
+      <option value="PF">Pessoa Física (CPF)</option>
+      <option value="PJ">Pessoa Jurídica (CNPJ)</option>
+    </select>
+
+    <label id="lblNome">Nome completo</label>
+    <input name="xNome" required>
+
+    <div class="row">
+      <div>
+        <label id="lblDoc">CPF</label>
+        <input name="doc" required>
+      </div>
+      <div>
+        <label>E-mail</label>
+        <input name="email" type="email" required>
+      </div>
+    </div>
+
+    <label>WhatsApp</label>
+    <input name="fone" required>
+
+    <div id="blocoPJ" style="display:none;">
+      <label>Contribuinte ICMS?</label>
+      <select name="contribuinteIcms" id="contribuinteIcms">
+        <option value="sim">Sim (tenho IE)</option>
+        <option value="isento">Isento</option>
+        <option value="nao">Não</option>
+      </select>
+
+      <label>IE (obrigatória se "Sim")</label>
+      <input name="IE" id="IE" placeholder="Ex: 123.456.78-9">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Endereço</h2>
+
+    <div class="row">
+      <div>
+        <label>CEP</label>
+        <input name="CEP" required>
+      </div>
+      <div>
+        <label>UF</label>
+        <select name="UF" required>
+          <option value="">Selecione</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option>
+          <option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+          <option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option>
+          <option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+          <option>SP</option><option>SE</option><option>TO</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Cidade</label>
+    <input name="xMun" required>
+
+    <label>Logradouro (Rua/Av)</label>
+    <input name="xLgr" required>
+
+    <div class="row">
+      <div>
+        <label>Número</label>
+        <input name="nro" required>
+      </div>
+      <div>
+        <label>Complemento</label>
+        <input name="xCpl">
+      </div>
+    </div>
+
+    <label>Bairro</label>
+    <input name="xBairro" required>
+  </div>
+
+  <div class="card">
+    <h2>Itens do pedido</h2>
+    <div class="hint">Use SKU/código do seu sistema. Você pode colocar variação (ex: tamanho, ml, cor).</div>
+
+    <div class="items" id="items"></div>
+    <button type="button" id="addItem">+ Adicionar item</button>
+  </div>
+
+  <div class="card">
+    <h2>Frete / Observações</h2>
+    <label>Frete (opcional)</label>
+    <input name="frete" placeholder="Ex: Correios PAC / Sedex / Transportadora">
+
+    <label>Observações</label>
+    <textarea name="obs" rows="3"></textarea>
+
+    <label style="margin-top:12px;">
+      <input type="checkbox" required> Autorizo o uso dos meus dados para processamento do pedido (LGPD).
+    </label>
+
+    <button type="submit">Enviar pedido</button>
+  </div>
+</form>
+
+<script>
+const itemsEl = document.getElementById("items");
+function addItemRow(prefill={sku:"", variacao:"", qtd:1}) {
+  const row = document.createElement("div");
+  row.className = "item";
+  row.innerHTML = `
+    <input class="sku" placeholder="SKU/Código" value="${prefill.sku}">
+    <input class="var" placeholder="Variação (opcional)" value="${prefill.variacao}">
+    <input class="qtd" type="number" min="1" value="${prefill.qtd}">
+    <button type="button" class="rem">X</button>
+  `;
+  row.querySelector(".rem").onclick = () => row.remove();
+  itemsEl.appendChild(row);
+}
+document.getElementById("addItem").onclick = () => addItemRow();
+addItemRow(); // 1 item inicial
+
+const tipo = document.getElementById("tipoCliente");
+const blocoPJ = document.getElementById("blocoPJ");
+const lblNome = document.getElementById("lblNome");
+const lblDoc = document.getElementById("lblDoc");
+function syncTipo(){
+  const isPJ = tipo.value === "PJ";
+  blocoPJ.style.display = isPJ ? "block" : "none";
+  lblNome.textContent = isPJ ? "Razão social" : "Nome completo";
+  lblDoc.textContent = isPJ ? "CNPJ" : "CPF";
+}
+tipo.addEventListener("change", syncTipo);
+syncTipo();
+
+document.getElementById("pedidoForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const data = Object.fromEntries(new FormData(f).entries());
+
+  // monta itens
+  const itens = [...itemsEl.querySelectorAll(".item")].map(r => ({
+    sku: r.querySelector(".sku").value.trim(),
+    variacao: r.querySelector(".var").value.trim(),
+    qtd: Number(r.querySelector(".qtd").value)
+  })).filter(i => i.sku && i.qtd > 0);
+
+  if (itens.length === 0) return alert("Adicione ao menos 1 item com SKU e quantidade.");
+
+  // indIEDest
+  if (data.tipoCliente === "PF") data.indIEDest = "9";
+  else {
+    const c = (data.contribuinteIcms || "nao");
+    data.indIEDest = (c === "sim") ? "1" : (c === "isento") ? "2" : "9";
+  }
+
+  const payload = {
+    tipoCliente: data.tipoCliente,
+    xNome: data.xNome,
+    doc: data.doc,
+    email: data.email,
+    fone: data.fone,
+    indIEDest: data.indIEDest,
+    IE: data.IE || "",
+    enderDest: {
+      CEP: data.CEP,
+      xLgr: data.xLgr,
+      nro: data.nro,
+      xCpl: data.xCpl || "",
+      xBairro: data.xBairro,
+      xMun: data.xMun,
+      UF: data.UF
+    },
+    itens,
+    frete: data.frete || "",
+    obs: data.obs || ""
+  };
+
+  const resp = await fetch("/api/pedidos", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+
+  if (resp.ok) {
+    alert("Pedido enviado ✅");
+    f.reset();
+    itemsEl.innerHTML = "";
+    addItemRow();
+    syncTipo();
+  } else {
+    alert("Erro: " + await resp.text());
+  }
+});
+</script>
+</body>
+</html>
