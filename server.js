@@ -6,10 +6,16 @@ import path from "path";
 import crypto from "crypto";
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static("public"));
 
-app.use("/api/", rateLimit({ windowMs: 60_000, max: 30 }));
+app.use("/api/", rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false
+}));
 
 const onlyDigits = (s = "") => String(s).replace(/\D/g, "");
 const clean = (s = "") => String(s).trim();
@@ -226,3 +232,4 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
