@@ -185,7 +185,8 @@ app.post("/api/pedidos", async (req, res) => {
         IE: clean(p.IE || "") || undefined,
         email: clean(p.email),
         fone: clean(p.fone),
-      },
+      },     
+
       enderDest: {
         CEP: onlyDigits(e.CEP),
         xLgr: clean(e.xLgr),
@@ -199,6 +200,8 @@ app.post("/api/pedidos", async (req, res) => {
       frete: clean(p.frete || ""),
       obs: clean(p.obs || ""),
     };
+
+     await appendPedidoToSheet(pedido);
 
     // backup em arquivo
     await fs.mkdir("./data", { recursive: true });
@@ -274,6 +277,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
