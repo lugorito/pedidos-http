@@ -7,12 +7,9 @@ import crypto from "crypto";
 
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const { google } = require("googleapis");
-const google =
-  googleapis.google ??
-  googleapis.default?.google ??
-  googleapis.default ??
-  googleapis;
+
+const googleapis = require("googleapis");
+const google = googleapis.google;
 
 
 
@@ -295,6 +292,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
