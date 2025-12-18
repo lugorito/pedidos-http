@@ -5,12 +5,9 @@ import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
-
-
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-
-const googleapis = require("googleapis");
+const { google } = require("googleapis");
 const google =
   googleapis.google ??
   googleapis.default?.google ??
@@ -295,6 +292,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
