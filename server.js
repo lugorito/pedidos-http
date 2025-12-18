@@ -16,14 +16,16 @@ const google =
 
 
 
+
 // ================= GOOGLE SHEETS =================
 const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON no Render.");
 
 const creds = JSON.parse(rawCreds);
 
-const auth = new google.auth.GoogleAuth({
-  credentials: creds,
+const auth = new google.auth.JWT({
+  email: creds.client_email,
+  key: creds.private_key,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
@@ -31,6 +33,7 @@ const sheets = google.sheets({ version: "v4", auth });
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = "Pedidos";
+
 
 async function appendPedidoToSheet(pedido) {
   await sheets.spreadsheets.values.append({
@@ -292,6 +295,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
