@@ -6,6 +6,40 @@ import path from "path";
 import crypto from "crypto";
 import { google } from "googleapis";
 
+// ================= GOOGLE SHEETS =================
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON),
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
+
+const sheets = google.sheets({ version: "v4", auth });
+
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+const SHEET_NAME = "Pedidos";
+
+async function appendPedidoToSheet(pedido) {
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_NAME}!A1`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [[
+        pedido.pedidoId,
+        pedido.createdAt,
+        pedido.destinatario.xNome,
+        pedido.destinatario.email,
+        pedido.destinatario.fone,
+        pedido.enderDest.xMun,
+        pedido.enderDest.UF,
+        pedido.itens.map(i => `${i.sku} (${i.qtd})`).join(", "),
+        pedido.frete || "",
+        pedido.obs || ""
+      ]]
+    }
+  });
+}
+
+
 
 const app = express();
 app.set("trust proxy", 1);
@@ -240,6 +274,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
