@@ -4,12 +4,6 @@ import rateLimit from "express-rate-limit";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
-import rateLimit from "express-rate-limit";
-import fs from "fs/promises";
-import path from "path";
-import crypto from "crypto";
-
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { google } = require("googleapis");
@@ -291,6 +285,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
