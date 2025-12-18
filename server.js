@@ -11,7 +11,16 @@ import { google } from "googleapis";
 
 // ================= GOOGLE SHEETS =================
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON),
+  const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON no Render.");
+
+const creds = JSON.parse(rawCreds);
+
+const auth = new google.auth.GoogleAuth({
+  credentials: creds,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
+
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
@@ -280,6 +289,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
