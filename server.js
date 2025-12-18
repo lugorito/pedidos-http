@@ -7,26 +7,30 @@ import crypto from "crypto";
 
 const app = express();
 app.set("trust proxy", 1);
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static("public"));
+
 // Loga todas as requisições (temporário para debug)
 app.use((req, res, next) => {
   console.log(`[REQ] ${req.method} ${req.url}`);
   next();
 });
 
-// Health-check (pra testar se o servidor responde)
+// Health-check
 app.get("/health", (req, res) => {
   res.status(200).send("ok");
 });
 
-
-app.use("/api/", rateLimit({
-  windowMs: 60_000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false
-}));
+app.use(
+  "/api/",
+  rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
 
 const onlyDigits = (s = "") => String(s).replace(/\D/g, "");
 const clean = (s = "") => String(s).trim();
@@ -46,25 +50,7 @@ function isCPF(cpf) {
   return d2 === parseInt(cpf[10]);
 }
 
-function isCNPJ(cnpj) {
-  cnpj = onlyDigits(cnpj);
-  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
-  const calc = (base) => {
-    const w =
-      base.length === 12
-        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    let sum = 0;
-    for (let i = 0; i < w.length; i++) sum += parseInt(base[i]) * w[i];
-    const r = sum % 11;
-    return r < 2 ? 0 : 11 - rosin;
-  };
-  const d1 = calc(cnpj.slice(0, 12));
-  const d2 = calc(cnpj.slice(0, 12) + d1);
-  return parseInt(cnpj[12]) === d1 && parseInt(cnpj[13]) === d2;
-}
-
-// ⚠️ CORREÇÃO: havia um typo propositalmente a evitar; ajuste aqui:
+// CNPJ (fixo)
 function calcCNPJDigit(base) {
   const w =
     base.length === 12
@@ -75,7 +61,7 @@ function calcCNPJDigit(base) {
   const r = sum % 11;
   return r < 2 ? 0 : 11 - r;
 }
-function isCNPJ_FIXED(cnpj) {
+function isCNPJ(cnpj) {
   cnpj = onlyDigits(cnpj);
   if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
   const d1 = calcCNPJDigit(cnpj.slice(0, 12));
@@ -96,40 +82,15 @@ const transporter = nodemailer.createTransport({
   port: Number(process.env.SMTP_PORT || 587),
   secure: false,
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+
+  // evita travar e causar 502
+  connectionTimeout: 10_000,
+  greetingTimeout: 10_000,
+  socketTimeout: 10_000,
 });
 
 app.post("/api/pedidos", async (req, res) => {
   try {
-    // RESPONDE PRIMEIRO (isso evita 502)
-res.status(200).json({
-  ok: true,
-  pedidoId
-});
-
-// ENVIO DE E-MAIL EM SEGUNDO PLANO
-setImmediate(async () => {
-  try {
-    await transporter.sendMail({
-      from: process.env.MAIL_FROM,
-      to: process.env.MAIL_TO,
-      replyTo: pedido.destinatario.email,
-      subject,
-      text,
-      attachments: [
-        {
-          filename: `pedido-${pedidoId}.json`,
-          content: JSON.stringify(pedido, null, 2),
-          contentType: "application/json",
-        },
-      ],
-    });
-  } catch (err) {
-    console.error("Erro ao enviar e-mail:", err);
-  }
-});
-
-return;
-
     const p = req.body || {};
 
     // --- validações obrigatórias ---
@@ -155,16 +116,13 @@ return;
     if (p.tipoCliente === "PF") {
       assert(isCPF(p.doc), "CPF inválido.");
     } else {
-      assert(isCNPJ_FIXED(p.doc), "CNPJ inválido.");
+      assert(isCNPJ(p.doc), "CNPJ inválido.");
     }
 
     // --- indIEDest e IE ---
     const ind = String(p.indIEDest || "").trim();
     assert(["1", "2", "9"].includes(ind), "indIEDest deve ser 1, 2 ou 9.");
-
-    if (ind === "1") {
-      assert(clean(p.IE), "IE obrigatória quando indIEDest=1 (contribuinte ICMS).");
-    }
+    if (ind === "1") assert(clean(p.IE), "IE obrigatória quando indIEDest=1 (contribuinte ICMS).");
 
     // --- valida itens ---
     const itens = p.itens.map((it, idx) => {
@@ -173,11 +131,7 @@ return;
       const qtd = Number(it.qtd);
       assert(sku, `Item #${idx + 1}: sku obrigatório.`);
       assert(Number.isFinite(qtd) && qtd > 0, `Item #${idx + 1}: qtd inválida.`);
-      return {
-        sku,
-        qtd,
-        variacao: clean(it.variacao || ""),
-      };
+      return { sku, qtd, variacao: clean(it.variacao || "") };
     });
 
     const pedidoId = crypto.randomUUID();
@@ -215,7 +169,7 @@ return;
     const filePath = path.join("data", `pedido-${pedidoId}.json`);
     await fs.writeFile(filePath, JSON.stringify(pedido, null, 2), "utf8");
 
-    // e-mail
+    // monta e-mail
     const subject = `NOVO PEDIDO ${pedidoId} - ${pedido.enderDest.UF} - ${pedido.destinatario.xNome}`;
 
     const itensTxt = itens
@@ -248,22 +202,33 @@ FRETE: ${pedido.frete || "-"}
 OBS: ${pedido.obs || "-"}
 `;
 
-    await transporter.sendMail({
-      from: process.env.MAIL_FROM,
-      to: process.env.MAIL_TO,
-      replyTo: pedido.destinatario.email,
-      subject,
-      text,
-      attachments: [
-        {
-          filename: `pedido-${pedidoId}.json`,
-          content: JSON.stringify(pedido, null, 2),
-          contentType: "application/json",
-        },
-      ],
+    // ✅ RESPONDE IMEDIATAMENTE (não trava)
+    res.status(200).json({ ok: true, pedidoId });
+
+    // ✅ envia e-mail em segundo plano (se falhar, não quebra o pedido)
+    setImmediate(async () => {
+      try {
+        await transporter.sendMail({
+          from: process.env.MAIL_FROM,
+          to: process.env.MAIL_TO,
+          replyTo: pedido.destinatario.email,
+          subject,
+          text,
+          attachments: [
+            {
+              filename: `pedido-${pedidoId}.json`,
+              content: JSON.stringify(pedido, null, 2),
+              contentType: "application/json",
+            },
+          ],
+        });
+        console.log(`[MAIL] enviado pedido ${pedidoId}`);
+      } catch (err) {
+        console.error("[MAIL] erro ao enviar:", err?.message || err);
+      }
     });
 
-    return res.status(200).json({ ok: true, pedidoId });
+    return;
   } catch (err) {
     const status = err.status || 500;
     return res.status(status).send(err.message || "Erro interno.");
@@ -273,6 +238,8 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
+
 
 
 
