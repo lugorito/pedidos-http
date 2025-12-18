@@ -4,8 +4,10 @@ import rateLimit from "express-rate-limit";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
-import pkg from "googleapis";
-const { google } = pkg;
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const { google } = require("googleapis");
+
 
 
 // ================= GOOGLE SHEETS =================
@@ -279,6 +281,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
