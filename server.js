@@ -8,7 +8,8 @@ import crypto from "crypto";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
-const googleapis = require("googleapis");
+const { google } = googleapis;
+
 
 
 
@@ -25,28 +26,21 @@ if (!privateKey.includes("BEGIN PRIVATE KEY")) {
   throw new Error("private_key inválida");
 };
 
-
-
-
-
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
 
 if (!SPREADSHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID");
 
 
+const auth = new google.auth.JWT({
+  email: creds.client_email,
+  key: privateKey,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
 
-if (!process.env.GOOGLE_SHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID no Render");
+const sheets = google.sheets({ version: "v4", auth });
 
-
-
-
-
-
-
-
-
- 
+console.log("[BOOT] sheets ok?", !!sheets);
 
 
 async function appendPedidoToSheet(pedido) {
@@ -309,6 +303,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
