@@ -9,7 +9,14 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 const googleapis = require("googleapis");
-const google = googleapis.google;
+const google =
+  googleapis.google ??
+  googleapis.default?.google ??
+  googleapis.default?.googleapis?.google ??
+  googleapis.default ??
+  googleapis;
+
+console.log("[BOOT] google loaded?", !!google, "auth?", !!google?.auth);
 
 
 
@@ -292,6 +299,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
