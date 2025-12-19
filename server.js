@@ -27,6 +27,17 @@ if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON no Render.");
 
 const creds = JSON.parse(rawCreds);
 
+// ✅ garante que a private_key volte a ter quebras de linha reais
+const privateKey = (creds.private_key || "").replace(/\\n/g, "\n");
+if (!privateKey) throw new Error("Service account sem private_key. Verifique o JSON colado no Render.");
+
+const auth = new google.auth.JWT({
+  email: creds.client_email,
+  key: privateKey,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
+
+
 const auth = new google.auth.JWT({
   email: creds.client_email,
   key: creds.private_key,
@@ -299,6 +310,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
