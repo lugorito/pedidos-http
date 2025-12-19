@@ -48,7 +48,7 @@ if (!process.env.GOOGLE_SHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID no Ren
 
 
 
-const sheets = google.sheets({ version: "v4", auth });
+
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
@@ -318,6 +318,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
