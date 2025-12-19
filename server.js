@@ -9,7 +9,14 @@ import crypto from "crypto";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
-const { google } = require("googleapis");
+const googleapis = require("googleapis");
+const google = googleapis.google;
+
+if (!google) {
+  console.log("googleapis keys:", Object.keys(googleapis));
+  throw new Error("google veio undefined. Import do googleapis falhou.");
+}
+
 
 const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON");
@@ -303,6 +310,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
