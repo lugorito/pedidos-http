@@ -23,13 +23,9 @@ const privateKey = String(creds.private_key || "").replace(/\\n/g, "\n");
 if (!creds.client_email) throw new Error("Faltou client_email");
 if (!privateKey.includes("BEGIN PRIVATE KEY")) {
   throw new Error("private_key inválida");
-}
+};
 
-const auth = new JWT({
-  email: creds.client_email,
-  key: privateKey,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-});
+
 
 const sheets = googleapis.sheets({
   version: "v4",
@@ -316,6 +312,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
