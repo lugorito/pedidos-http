@@ -5,23 +5,41 @@ import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
-// ===== GOOGLE SHEETS (FORMA FINAL E CORRETA) =====
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 const googleapis = require("googleapis");
-const google = googleapis.google;
-
-if (!google) {
-  console.log("googleapis keys:", Object.keys(googleapis));
-  throw new Error("google veio undefined. Import do googleapis falhou.");
-}
+const { JWT } = require("google-auth-library");
 
 
+// ===== GOOGLE SHEETS (VERSÃO CORRETA 2025) =====
 const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON");
 
 const creds = JSON.parse(rawCreds);
+
+const privateKey = String(creds.private_key || "").replace(/\\n/g, "\n");
+
+if (!creds.client_email) throw new Error("Faltou client_email");
+if (!privateKey.includes("BEGIN PRIVATE KEY")) {
+  throw new Error("private_key inválida");
+}
+
+const auth = new JWT({
+  email: creds.client_email,
+  key: privateKey,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
+
+const sheets = googleapis.sheets({
+  version: "v4",
+  auth,
+});
+
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
+
+if (!SPREADSHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID");
 
 // Render salva \n como texto → corrigimos
 const privateKey = String(creds.private_key || "").replace(/\\n/g, "\n");
@@ -34,11 +52,7 @@ if (!privateKey.includes("BEGIN PRIVATE KEY")) {
 if (!process.env.GOOGLE_SHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID no Render");
 
 
-const auth = new google.auth.JWT({
-  email: creds.client_email,
-  key: privateKey,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-});
+
 
 const sheets = google.sheets({ version: "v4", auth });
 
@@ -310,6 +324,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
