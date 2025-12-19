@@ -17,7 +17,15 @@ if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON");
 const creds = JSON.parse(rawCreds);
 
 // Render salva \n como texto → corrigimos
-const privateKey = creds.private_key.replace(/\\n/g, "\n");
+const privateKey = String(creds.private_key || "").replace(/\\n/g, "\n");
+if (!creds.client_email) throw new Error("Faltou client_email no GOOGLE_SERVICE_ACCOUNT_JSON");
+if (!privateKey) throw new Error("Faltou private_key no GOOGLE_SERVICE_ACCOUNT_JSON");
+if (!privateKey.includes("BEGIN PRIVATE KEY")) {
+  throw new Error("private_key inválida (BEGIN PRIVATE KEY ausente)");
+}
+
+if (!process.env.GOOGLE_SHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID no Render");
+
 
 const auth = new google.auth.JWT({
   email: creds.client_email,
@@ -28,7 +36,8 @@ const auth = new google.auth.JWT({
 const sheets = google.sheets({ version: "v4", auth });
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
-const SHEET_NAME = "Pedidos";
+const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
+
 
 
  
@@ -294,6 +303,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
