@@ -31,39 +31,7 @@ const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = "Pedidos";
 
 
-  // aceita variações de nome só por segurança
-  const clientEmail = creds.client_email || creds.clientEmail;
-  let privateKey = creds.private_key || creds.privateKey;
-
-  // 🔴 AQUI está o pulo do gato: se a key vier com \\n, vira \n
-  if (typeof privateKey === "string") {
-    privateKey = privateKey.replace(/\\n/g, "\n").trim();
-  }
-
-  // validações duras (pra não cair no erro do gtoken sem explicar)
-  if (!clientEmail) throw new Error("Service Account: faltou client_email no JSON.");
-  if (!privateKey) throw new Error("Service Account: faltou private_key no JSON.");
-  if (!privateKey.includes("BEGIN PRIVATE KEY")) {
-    throw new Error("Service Account: private_key não parece uma chave válida (BEGIN PRIVATE KEY ausente).");
-  }
-
-  return { clientEmail, privateKey };
-}
-
-const { clientEmail, privateKey } = loadServiceAccountFromEnv();
-
-const auth = new google.auth.JWT({
-  email: clientEmail,
-  key: privateKey,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-});
-
-const sheets = google.sheets({ version: "v4", auth });
-
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
-const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
-
-if (!SPREADSHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID no Render.");
+ 
 
 
 async function appendPedidoToSheet(pedido) {
@@ -326,6 +294,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
