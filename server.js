@@ -27,10 +27,7 @@ if (!privateKey.includes("BEGIN PRIVATE KEY")) {
 
 
 
-const sheets = googleapis.sheets({
-  version: "v4",
-  auth,
-});
+
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
@@ -312,6 +309,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
