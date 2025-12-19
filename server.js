@@ -5,32 +5,31 @@ import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
+// ===== GOOGLE SHEETS (FORMA FINAL E CORRETA) =====
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const { google } = require("googleapis"); // ✅ assim o google vem certo
 
+const { google } = require("googleapis");
 
+const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON");
 
+const creds = JSON.parse(rawCreds);
 
+// Render salva \n como texto → corrigimos
+const privateKey = creds.private_key.replace(/\\n/g, "\n");
 
+const auth = new google.auth.JWT({
+  email: creds.client_email,
+  key: privateKey,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
 
+const sheets = google.sheets({ version: "v4", auth });
 
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+const SHEET_NAME = "Pedidos";
 
-
-import pkg from "googleapis";
-const { google } = pkg;
-
-// ================= GOOGLE SHEETS (ROBUSTO) =================
-function loadServiceAccountFromEnv() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON no Render.");
-
-  let creds;
-  try {
-    creds = JSON.parse(raw);
-  } catch (e) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON está com JSON inválido (não deu JSON.parse).");
-  }
 
   // aceita variações de nome só por segurança
   const clientEmail = creds.client_email || creds.clientEmail;
@@ -327,6 +326,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
