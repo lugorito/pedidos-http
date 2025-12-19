@@ -41,13 +41,7 @@ const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
 
 if (!SPREADSHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID");
 
-// Render salva \n como texto → corrigimos
-const privateKey = String(creds.private_key || "").replace(/\\n/g, "\n");
-if (!creds.client_email) throw new Error("Faltou client_email no GOOGLE_SERVICE_ACCOUNT_JSON");
-if (!privateKey) throw new Error("Faltou private_key no GOOGLE_SERVICE_ACCOUNT_JSON");
-if (!privateKey.includes("BEGIN PRIVATE KEY")) {
-  throw new Error("private_key inválida (BEGIN PRIVATE KEY ausente)");
-}
+
 
 if (!process.env.GOOGLE_SHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID no Render");
 
@@ -324,6 +318,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
