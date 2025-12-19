@@ -27,6 +27,9 @@ if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON no Render.");
 
 const creds = JSON.parse(rawCreds);
 
+console.log("[SHEETS] has client_email?", !!creds.client_email);
+console.log("[SHEETS] has private_key?", !!creds.private_key, "len:", (creds.private_key || "").length);
+
 // ✅ garante que a private_key volte a ter quebras de linha reais
 const privateKey = (creds.private_key || "").replace(/\\n/g, "\n");
 if (!privateKey) throw new Error("Service account sem private_key. Verifique o JSON colado no Render.");
@@ -303,6 +306,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
