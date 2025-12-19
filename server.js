@@ -7,6 +7,10 @@ import crypto from "crypto";
 
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
+const { google } = require("googleapis"); // ✅ assim o google vem certo
+
+
+
 
 
 
@@ -323,6 +327,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
