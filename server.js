@@ -9,7 +9,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 const googleapis = require("googleapis");
-const { JWT } = require("google-auth-library");
+
 
 
 // ===== GOOGLE SHEETS (VERSÃO CORRETA 2025) =====
@@ -316,6 +316,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
