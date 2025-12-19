@@ -21,25 +21,44 @@ console.log("[BOOT] google loaded?", !!google, "auth?", !!google?.auth);
 
 
 
-// ================= GOOGLE SHEETS =================
-const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON no Render.");
+import pkg from "googleapis";
+const { google } = pkg;
 
-const creds = JSON.parse(rawCreds);
+// ================= GOOGLE SHEETS (ROBUSTO) =================
+function loadServiceAccountFromEnv() {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON no Render.");
 
-// 🔴 ESSENCIAL: corrigir quebras de linha da private_key
-creds.private_key = creds.private_key.replace(/\\n/g, "\n");
+  let creds;
+  try {
+    creds = JSON.parse(raw);
+  } catch (e) {
+    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON está com JSON inválido (não deu JSON.parse).");
+  }
 
+  // aceita variações de nome só por segurança
+  const clientEmail = creds.client_email || creds.clientEmail;
+  let privateKey = creds.private_key || creds.privateKey;
 
-console.log("[SHEETS] has client_email?", !!creds.client_email);
-console.log("[SHEETS] has private_key?", !!creds.private_key, "len:", (creds.private_key || "").length);
+  // 🔴 AQUI está o pulo do gato: se a key vier com \\n, vira \n
+  if (typeof privateKey === "string") {
+    privateKey = privateKey.replace(/\\n/g, "\n").trim();
+  }
 
-// ✅ garante que a private_key volte a ter quebras de linha reais
-const privateKey = (creds.private_key || "").replace(/\\n/g, "\n");
-if (!privateKey) throw new Error("Service account sem private_key. Verifique o JSON colado no Render.");
+  // validações duras (pra não cair no erro do gtoken sem explicar)
+  if (!clientEmail) throw new Error("Service Account: faltou client_email no JSON.");
+  if (!privateKey) throw new Error("Service Account: faltou private_key no JSON.");
+  if (!privateKey.includes("BEGIN PRIVATE KEY")) {
+    throw new Error("Service Account: private_key não parece uma chave válida (BEGIN PRIVATE KEY ausente).");
+  }
+
+  return { clientEmail, privateKey };
+}
+
+const { clientEmail, privateKey } = loadServiceAccountFromEnv();
 
 const auth = new google.auth.JWT({
-  email: creds.client_email,
+  email: clientEmail,
   key: privateKey,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
@@ -47,7 +66,9 @@ const auth = new google.auth.JWT({
 const sheets = google.sheets({ version: "v4", auth });
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
-const SHEET_NAME = "Pedidos";
+const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
+
+if (!SPREADSHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID no Render.");
 
 
 async function appendPedidoToSheet(pedido) {
@@ -310,6 +331,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
