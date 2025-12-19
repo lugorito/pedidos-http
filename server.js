@@ -8,6 +8,9 @@ import crypto from "crypto";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
+// ✅ ESTA LINHA ESTAVA FALTANDO
+const googleapis = require("googleapis");
+
 const { google } = googleapis;
 
 
@@ -303,6 +306,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
