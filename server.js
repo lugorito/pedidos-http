@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 // ✅ ESTA LINHA ESTAVA FALTANDO
 const googleapis = require("googleapis");
 
-const { google } = googleapis;
+const { JWT } = require("google-auth-library");
 
 
 
@@ -35,11 +35,14 @@ const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
 if (!SPREADSHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID");
 
 
-const auth = new google.auth.JWT({
+const auth = new JWT({
   email: creds.client_email,
   key: privateKey,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
+
+const sheets = googleapis.sheets({ version: "v4", auth });
+
 
 const sheets = google.sheets({ version: "v4", auth });
 
@@ -306,6 +309,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
