@@ -52,6 +52,8 @@ console.log("[BOOT] sheets ok?", !!sheets);
 
 
 async function appendPedidoToSheet(pedido) {
+  const sheets = await getSheetsClient();
+
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!A1`,
@@ -72,7 +74,6 @@ async function appendPedidoToSheet(pedido) {
     }
   });
 }
-
 
 
 const app = express();
@@ -311,6 +312,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
