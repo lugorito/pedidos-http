@@ -11,7 +11,20 @@ const require = createRequire(import.meta.url);
 // ✅ ESTA LINHA ESTAVA FALTANDO
 const googleapis = require("googleapis");
 
-const { GoogleAuth } = require("google-auth-library");
+const gal = require("google-auth-library");
+
+// pega GoogleAuth independente do formato do export
+const GoogleAuth =
+  gal.GoogleAuth ??
+  gal.default?.GoogleAuth ??
+  gal;
+
+if (typeof GoogleAuth !== "function") {
+  console.log("[BOOT] google-auth-library keys:", Object.keys(gal));
+  console.log("[BOOT] google-auth-library default keys:", gal.default ? Object.keys(gal.default) : null);
+  throw new Error("Não consegui carregar GoogleAuth do google-auth-library.");
+}
+
 
 // ===== GOOGLE SHEETS (ESTÁVEL NO RENDER/NODE 22) =====
 const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
@@ -312,6 +325,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
