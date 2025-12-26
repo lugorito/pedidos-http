@@ -41,7 +41,6 @@ const auth = new JWT({
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
-const sheets = googleapis.sheets({ version: "v4", auth });
 
 
 const sheets = google.sheets({ version: "v4", auth });
@@ -309,6 +308,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
