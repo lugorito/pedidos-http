@@ -11,37 +11,40 @@ const require = createRequire(import.meta.url);
 // ✅ ESTA LINHA ESTAVA FALTANDO
 const googleapis = require("googleapis");
 
-const { JWT } = require("google-auth-library");
+const { GoogleAuth } = require("google-auth-library");
 
-
-
-
-// ===== GOOGLE SHEETS (VERSÃO CORRETA 2025) =====
+// ===== GOOGLE SHEETS (ESTÁVEL NO RENDER/NODE 22) =====
 const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON");
 
 const creds = JSON.parse(rawCreds);
-
 const privateKey = String(creds.private_key || "").replace(/\\n/g, "\n");
 
 if (!creds.client_email) throw new Error("Faltou client_email");
-if (!privateKey.includes("BEGIN PRIVATE KEY")) {
-  throw new Error("private_key inválida");
-};
+if (!privateKey.includes("BEGIN PRIVATE KEY")) throw new Error("private_key inválida");
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
-
 if (!SPREADSHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID");
 
-
-const auth = new JWT({
-  email: creds.client_email,
-  key: privateKey,
+// cria auth (GoogleAuth é o jeito mais compatível)
+const gAuth = new GoogleAuth({
+  credentials: {
+    client_email: creds.client_email,
+    private_key: privateKey,
+  },
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
-
+// cria o client do Sheets de forma “lazy” (só quando precisar)
+let sheetsClient = null;
+async function getSheetsClient() {
+  if (sheetsClient) return sheetsClient;
+  const authClient = await gAuth.getClient();
+  sheetsClient = googleapis.sheets({ version: "v4", auth: authClient });
+  console.log("[BOOT] sheets client criado");
+  return sheetsClient;
+}
 
 const sheets = google.sheets({ version: "v4", auth });
 
@@ -308,6 +311,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
