@@ -60,10 +60,6 @@ async function getSheetsClient() {
 }
 
 
-
-console.log("[BOOT] sheets ok?", !!sheets);
-
-
 async function appendPedidoToSheet(pedido) {
   const sheets = await getSheetsClient();
 
@@ -325,6 +321,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
