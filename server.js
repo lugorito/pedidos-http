@@ -222,7 +222,13 @@ app.post("/api/pedidos", async (req, res) => {
       obs: clean(p.obs || ""),
     };
 
-     await appendPedidoToSheet(pedido);
+    try {
+  await appendPedidoToSheet(pedido);
+  console.log("[SHEETS] append OK", pedido.pedidoId);
+} catch (e) {
+  console.error("[SHEETS] append FAIL", e?.response?.data || e?.message || e);
+}
+
 
     // backup em arquivo
     await fs.mkdir("./data", { recursive: true });
@@ -298,6 +304,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
