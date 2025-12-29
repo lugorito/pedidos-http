@@ -59,7 +59,7 @@ async function getSheetsClient() {
   return sheetsClient;
 }
 
-const sheets = google.sheets({ version: "v4", auth });
+
 
 console.log("[BOOT] sheets ok?", !!sheets);
 
@@ -325,6 +325,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
