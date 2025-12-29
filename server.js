@@ -8,61 +8,39 @@ import crypto from "crypto";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
-// ✅ ESTA LINHA ESTAVA FALTANDO
+
 const googleapis = require("googleapis");
-
-const gal = require("google-auth-library");
-
-// pega GoogleAuth independente do formato do export
-const GoogleAuth =
-  gal.GoogleAuth ??
-  gal.default?.GoogleAuth ??
-  gal;
-
-if (typeof GoogleAuth !== "function") {
-  console.log("[BOOT] google-auth-library keys:", Object.keys(gal));
-  console.log("[BOOT] google-auth-library default keys:", gal.default ? Object.keys(gal.default) : null);
-  throw new Error("Não consegui carregar GoogleAuth do google-auth-library.");
-}
+const google = googleapis.google ?? googleapis; // fallback seguro
 
 
-// ===== GOOGLE SHEETS (ESTÁVEL NO RENDER/NODE 22) =====
+// ===== GOOGLE SHEETS (JWT - ESTÁVEL) =====
 const rawCreds = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 if (!rawCreds) throw new Error("Faltou GOOGLE_SERVICE_ACCOUNT_JSON");
 
 const creds = JSON.parse(rawCreds);
+
+// Render salva \n como texto -> corrigimos
 const privateKey = String(creds.private_key || "").replace(/\\n/g, "\n");
 
-if (!creds.client_email) throw new Error("Faltou client_email");
+if (!creds.client_email) throw new Error("Faltou client_email no JSON");
+if (!privateKey) throw new Error("Faltou private_key no JSON");
 if (!privateKey.includes("BEGIN PRIVATE KEY")) throw new Error("private_key inválida");
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = process.env.GOOGLE_SHEET_TAB || "Pedidos";
 if (!SPREADSHEET_ID) throw new Error("Faltou GOOGLE_SHEET_ID");
 
-// cria auth (GoogleAuth é o jeito mais compatível)
-const gAuth = new GoogleAuth({
-  credentials: {
-    client_email: creds.client_email,
-    private_key: privateKey,
-  },
+const auth = new google.auth.JWT({
+  email: creds.client_email,
+  key: privateKey,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
-// cria o client do Sheets de forma “lazy” (só quando precisar)
-let sheetsClient = null;
-async function getSheetsClient() {
-  if (sheetsClient) return sheetsClient;
-  const authClient = await gAuth.getClient();
-  sheetsClient = googleapis.sheets({ version: "v4", auth: authClient });
-  console.log("[BOOT] sheets client criado");
-  return sheetsClient;
-}
+const sheets = google.sheets({ version: "v4", auth });
 
+console.log("[BOOT] Sheets pronto");
 
 async function appendPedidoToSheet(pedido) {
-  const sheets = await getSheetsClient();
-
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!A1`,
@@ -83,7 +61,6 @@ async function appendPedidoToSheet(pedido) {
     }
   });
 }
-
 
 const app = express();
 app.set("trust proxy", 1);
@@ -321,6 +298,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
