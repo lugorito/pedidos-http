@@ -135,16 +135,22 @@ function assert(condition, msg) {
 }
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: false,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-
-  // evita travar e causar 502
-  connectionTimeout: 10_000,
-  greetingTimeout: 10_000,
-  socketTimeout: 10_000,
+  host: "smtp.office365.com",
+  port: 587,
+  secure: false, // 587 = STARTTLS
+  auth: {
+    user: process.env.SMTP_USER, // seu email outlook
+    pass: process.env.SMTP_PASS  // senha de app (recomendado)
+  },
+  requireTLS: true,
+  tls: {
+    ciphers: "SSLv3",
+  },
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
+  socketTimeout: 20000,
 });
+
 
 app.post("/api/pedidos", async (req, res) => {
   try {
@@ -304,6 +310,7 @@ OBS: ${pedido.obs || "-"}
 app.listen(process.env.PORT || 3000, () => {
   console.log("Servidor rodando.");
 });
+
 
 
 
